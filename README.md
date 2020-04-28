@@ -1,2 +1,2 @@
 # CamelBird
-Feathers of truth.
+A feather of truth.
