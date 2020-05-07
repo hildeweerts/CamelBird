@@ -1,5 +1,5 @@
 # CamelBird
-CamelBird is a Python packages for measuring and achieving fairness of machine learning models.
+CamelBird is a Python package for measuring and achieving fairness of machine learning models.
 
 ## Installation
 ...
