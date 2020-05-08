@@ -51,7 +51,7 @@ def _ratio(scores):
 
 
 def score_subgroups(y_true, y_pred, a, metric, sample_weight=None, **metric_params):
-    """
+    """Compute scores for each subgroup according to a (scikit-learn style) metric.
 
     Parameters
     ----------
@@ -139,15 +139,3 @@ def equal_opportunity(y_true, y_pred, a, aggregate=None, sample_weight=None):
         return _diff(equalopp)
     elif aggregate == 'ratio':
         return _ratio(equalopp)
-
-
-if __name__ == "__main__":
-    y_true = [1, 1, 1, 1, 1, 0, 0]
-    y_pred = [0, 1, 1, 1, 1, 0, 0]
-    a = [1, 1, 1, 0, 0, 1, 0]
-    sample_weight = [1, 1, 2, 2, 1, 1, 1]
-
-    print(equal_opportunity(y_true, y_pred, a, aggregate=None, sample_weight=None))
-    print(equal_opportunity(y_true, y_pred, a, aggregate='ratio', sample_weight=None))
-    print(equal_opportunity(y_true, y_pred, a, aggregate='diff', sample_weight=None))
-    print(equal_opportunity(y_true, y_pred, a, aggregate=None, sample_weight=sample_weight))
