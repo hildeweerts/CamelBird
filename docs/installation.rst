@@ -2,8 +2,8 @@
 Installation
 ==================================================
 
-Install ``camelbird`` with ``pip`` (coming soon)
+You can install ``camelbird`` with ``pip``.
 
 .. code-block:: console
 
-    $ pip install
+    $ pip install git+https://github.com/hildeweerts/camelbird.git

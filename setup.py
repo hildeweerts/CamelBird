@@ -4,7 +4,7 @@ with open("README.md", "r") as fh:
     readme = fh.read()
 
 setup(
-    name="camelbird", # Replace with your own username
+    name="camelbird",
     version="0.0.1",
     description="Fair Machine Learning",
     url="https://github.com/hildeweerts/camelbird",
@@ -18,6 +18,4 @@ setup(
                       "scikit-learn",
                       ],
     python_requires='>=3.6',
-    setup_requires=["pytest-runner"],
-    tests_require=["pytest"]
 )
