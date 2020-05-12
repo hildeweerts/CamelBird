@@ -32,19 +32,29 @@ release = '0.0.1'
 # ones.
 extensions = [
 	'sphinx.ext.autodoc',
-	'sphinx.ext.coverage', 
+	'sphinx.ext.autosummary',
+	'sphinx.ext.coverage',
 	'sphinx.ext.napoleon',
+	#'sphinx_gallery.gen_gallery',
 ]
 
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
 
+# generate autosummary even if no references
+autosummary_generate = True
+
+# The suffix of source filenames.
+source_suffix = '.rst'
+
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 
+# The name of the Pygments (syntax highlighting) style to use.
+pygments_style = 'default'
 
 # -- Options for HTML output -------------------------------------------------
 
@@ -57,3 +67,8 @@ html_theme = 'sphinx_rtd_theme'
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['_static']
+
+# a copy button to copy snippet of code from the documentation
+def setup(app):
+    app.add_js_file('js/copybutton.js')
+    #app.add_css_file("basic.css")
