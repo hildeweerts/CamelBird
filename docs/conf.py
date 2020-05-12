@@ -42,6 +42,9 @@ extensions = [
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
 
+# Set masterdoc to index
+master_doc = "index"
+
 # generate autosummary even if no references
 autosummary_generate = True
 
