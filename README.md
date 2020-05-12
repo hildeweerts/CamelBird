@@ -1,6 +1,8 @@
 # CamelBird
 CamelBird is a Python package for measuring and optimizing for fairness of machine learning models.
 
+Find more information on https://camelbird.readthedocs.io.
+
 ## Installation
 You can install `camelbird` from github. Simply open a terminal and run:
 
