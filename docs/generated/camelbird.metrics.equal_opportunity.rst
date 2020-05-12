@@ -5,7 +5,8 @@
 
 .. autofunction:: equal_opportunity
 
-.. include:: camelbird.metrics.equal_opportunity.examples
+..
+    include:: camelbird.metrics.equal_opportunity.examples
 
 .. raw:: html
 
