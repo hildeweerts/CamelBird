@@ -65,7 +65,7 @@ def score_subgroups(y_true, y_pred, a, metric, sample_weight=None, **metric_para
         Sensitive group membership.
 
     metric : callable
-        Metric that must be computed for each group. Callable of form metric(y_true, y_pred, a, sample_weight).
+        Metric that must be computed for each group. Callable of form metric(y_true, y_pred, sample_weight, **kwargs).
 
     sample_weight : array-like of shape (n_samples,), default=None
         Sample weights.
@@ -95,11 +95,50 @@ def score_subgroups(y_true, y_pred, a, metric, sample_weight=None, **metric_para
     return scores
 
 
+def _base_rate_score(y_true, y_pred, sample_weight):
+    """Compute base rate of predictions.
+
+    Parameters
+    ----------
+    y_true  : ignored
+        Not used, present here for API consistency by convention.
+
+    y_pred : array-like of shape (n_samples,)
+        Predicted labels as integers, ``1`` for positive class, ``0`` for negative class.
+
+    sample_weight : array-like of shape (n_samples,), default=None
+        Sample weights.
+
+    Returns
+    -------
+    base_rate : float
+        Base rate of predictions.
+
+    """
+    y_pred = column_or_1d(y_pred)
+    a = column_or_1d(a)
+    sample_weight = _check_sample_weight(sample_weight, y_pred)
+
+    if not _check_binary(y_pred):
+        raise NotImplementedError("Non-binary target is currently not supported.")
+
+    return (y_pred*sample_weight).mean()
+
+
 def equal_opportunity(y_true, y_pred, a, aggregate=None, sample_weight=None):
-    """Equal opportunity.
+    """
+    Equal opportunity fairness metric.
 
-    Equal true positive rates (a.k.a. recall).
+    Equal opportunity requires that the true positive rates, ``tp / (tp + fn)`` of all subgroups are equal, where ``tp``
+    is the number of true positives and ``fn`` the number of false negatives. The true positive rate is also known as
+    recall. In other words, the classifier should predict the *preferred* class equally well, regardless of
+    sensitive group membership. Note that this fairness metric does not take into account correct classification of true
+    negatives.
 
+    For example, consider a job hiring scenario in which we assume that getting hired is the preferred target outcome
+    and gender is the sensitive feature of interest (which we will assume to be binary for ease of presentation). Equal
+    opportunity requires that women who possess the abilities to do well on a job (i.e. `positives`) are just as often
+    classified correctly as men who possess the ability to do well on a job.
 
     Parameters
     ----------
@@ -113,10 +152,10 @@ def equal_opportunity(y_true, y_pred, a, aggregate=None, sample_weight=None):
         Sensitive group membership
 
     aggregate : string, [None, 'diff', 'ratio']
+        The type of aggregation performed on the true positive rates.
 
-        If ``None``, the true positive rate (also known as recall) for each group is returned. Otherwise, this
-        determines the type of aggregation performed on the scores:
-
+        ``None``:
+            Report the score for each group.
         ``'diff'``:
             Report the difference.
         ``'ratio'``:
@@ -127,15 +166,176 @@ def equal_opportunity(y_true, y_pred, a, aggregate=None, sample_weight=None):
 
     Returns
     -------
-    equalopp : array, or float
-        Equal opportunity scores.
+    tpr_scores : array of shape (n_groups,)
+        Raw true positive rates, if ``aggregate=None``.
+
+    equalopp : float
+        Fairness metric score, if ``aggregate='diff'`` or ``aggregate="ratio"``.
+
+    See Also
+    --------
+    camelbird.metrics.equal_odds: Fairness metric that also requires equal true negative rates.
+    camelbird.metrics.demographic_parity: Fairness metric that requires equal base rates.
+
+    Notes
+    -----
+
+    See [1]_ for a more detailed discussion on equal opportunity.
+
+    ..  [1] M. Hardt, E. Price, and N. Srebro.  Equality of opportunity in supervised learning.  In Advances in  Neural
+        Information  Processing  Systems  29, pages 3315–3323. 2016
+
     """
-    equalopp = score_subgroups(y_true, y_pred, a, recall_score, sample_weight=sample_weight)
-    if aggregate not in (None, 'diff', 'ratio'):
-        raise ValueError("'aggregate' must be in [None, 'diff', 'ratio'].")
+    tpr_scores = score_subgroups(y_true, y_pred, a, recall_score, sample_weight=sample_weight, pos_label=1)
     if aggregate is None:
-        return equalopp
+        return tpr_scores
     elif aggregate == 'diff':
-        return _diff(equalopp)
+        return _diff(tpr_scores)
     elif aggregate == 'ratio':
-        return _ratio(equalopp)
+        return _ratio(tpr_scores)
+    else:
+        raise ValueError("'aggregate' must be in [None, 'diff', 'ratio'].")
+
+
+def demographic_parity(y_true, y_pred, a, aggregate=None, sample_weight=None):
+    """Demographic parity fairness metric.
+
+    Demographic parity requires that the base rates (i.e. percentage of predicted positives), are equal for all
+    subgroups.
+
+    For example, consider a job hiring scenario in which we assume that getting hired is the preferred target outcome
+    and gender is the sensitive feature of interest (which we will assume to be binary for ease of presentation).
+    Demographic parity requires that the percentage of women that is hired is the same as the percentage of men,
+    irrespective of whether one group is, on average, more qualified.
+
+    In contrast to equal odds and equal opportunity, demographic parity does not take into account error rates;
+    i.e. the fairness metric does have any requirements regarding 'how wrong' the classifier is.
+
+    Parameters
+    ----------
+    y_true  : ignored
+        Not used, present here for API consistency by convention.
+
+    y_pred : array-like of shape (n_samples,)
+        Predicted labels as integers, ``1`` for preferred class, ``0`` for undesired class.
+
+    a : array-like of shape (n_samples,)
+        Sensitive group membership, ``1`` for unprivileged group, ``0`` for privileged group.
+
+    aggregate : string, [None, 'diff', 'ratio']
+        The type of aggregation performed on the base rates.
+
+        ``None``:
+            Report the score for each group.
+        ``'diff'``:
+            Report the difference.
+        ``'ratio'``:
+            Report the ratio.
+
+    sample_weight : array-like of shape (n_samples,), default=None
+        Sample weights.
+
+    Returns
+    -------
+    base_rates : array of shape (n_groups,)
+        Raw base rates if ``aggregate=None``
+
+    demopar : float
+        Fairness metric score if ``aggregate='diff'`` or ``aggregate="ratio"``
+
+    See Also
+    --------
+    camelbird.metrics.equal_opportunity : Fairness metric that requires equal true positive rates.
+    camelbird.metrics.equal_odds : Fairness metric that requires equal true positive rates and
+        equal true negative rates.
+
+    Notes
+    -----
+
+    See [1]_ for a more detailed discussion on demographic parity.
+
+    ..  [1] Something
+
+    """
+    base_rates = score_subgroups(y_true, y_pred, a, _base_rate_score, sample_weight=sample_weight)
+    if aggregate is None:
+        return base_rates
+    elif aggregate == 'diff':
+        return _diff(base_rates)
+    elif aggregate == 'ratio':
+        return _ratio(base_rates)
+    else:
+        raise ValueError("'aggregate' must be in [None, 'diff', 'ratio'].")
+
+
+def equal_odds(y_true, y_pred, a, aggregate=None, sample_weight=None):
+    """Equal odds fairness metric.
+
+    Equal odds requires that the true positive rates, ``tp / (tp + fn)``, as well as the true negative rates,
+     ``tn / (tn + fp)`` of all subgroups are equal, where ``tp`` is the number of true positives, ``fn`` the number of
+     false negatives, ``tn`` the number of true negatives, and ``fp`` the number of false positives.
+
+    For example, consider a job hiring scenario in which we assume that getting hired is the preferred target outcome
+    and gender is the sensitive feature of interest (which we will assume to be binary for ease of presentation).
+    Equal odds requires that
+
+    Parameters
+    ----------
+    y_true : array-like of shape (n_samples,)
+        Ground truth (correct) labels as integers.
+
+    y_pred : array-like of shape (n_samples,)
+        Predicted labels as integers.
+
+    a : array-like of shape (n_samples,)
+        Sensitive group membership
+
+    aggregate : string, [None, 'diff', 'ratio']
+        The type of aggregation performed on the true positive rates and true negative rates.
+
+        ``None``:
+            Report the tpr and tnr for each group.
+        ``'diff'``:
+            Report the maximum difference in tpr or tnr between groups.
+        ``'ratio'``:
+            Report the minimum ratio of tpr or tnr between groups.
+
+    sample_weight : array-like of shape (n_samples,), default=None
+        Sample weights.
+
+    Returns
+    -------
+    scores : array of shape (n_groups,2)
+        Raw true positive rates and true negative rates, if ``aggregate=None``.
+
+    equalodd : float
+        If ``aggregate='diff'``, returns the maximum of the tpr difference and tnr difference.
+        If ``aggregate="ratio"``, returns the minimum of the tpr ratio and the tnr ratio.
+
+    See Also
+    --------
+    camelbird.metrics.equal_opportunity : Fairness metric that requires only equal true positive rates.
+    camelbird.metrics.demographic_parity : Fairness metric that requires equal base rates.
+
+    Notes
+    -----
+
+    See [1]_ for a more detailed discussion on equal opportunity.
+
+    ..  [1] Something
+
+    """
+    tpr_scores = score_subgroups(y_true, y_pred, a, recall_score, sample_weight=sample_weight, pos_label=1)
+    tnr_scores = score_subgroups(y_true, y_pred, a, recall_score, sample_weight=sample_weight, pos_label=0)
+    if aggregate is None:
+        return np.array([tpr_scores, tnr_scores])
+    elif aggregate == 'diff':
+        diff_tpr = _diff(tpr_scores)
+        diff_tnr = _diff(tnr_scores)
+        return max(diff_tpr, diff_tnr)
+    elif aggregate == 'ratio':
+        ratio_tpr = _ratio(tpr_scores)
+        ratio_tnr = _ratio(tnr_scores)
+        return min(ratio_tpr, ratio_tnr)
+    else:
+        raise ValueError("'aggregate' must be in [None, 'diff', 'ratio'].")
