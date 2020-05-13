@@ -12,4 +12,6 @@ Metrics
     :toctree: generated/
     :template: function.rst
 
+    demographic_parity
     equal_opportunity
+    equal_odds

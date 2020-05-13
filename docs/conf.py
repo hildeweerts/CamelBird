@@ -45,8 +45,10 @@ templates_path = ['_templates']
 # Set masterdoc to index
 master_doc = "index"
 
-# generate autosummary even if no references
+# generate autosummary
 autosummary_generate = True
+autosummary_override = True
+autodoc_override = True
 
 # The suffix of source filenames.
 source_suffix = '.rst'
