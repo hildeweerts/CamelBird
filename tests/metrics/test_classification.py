@@ -5,7 +5,7 @@
 # License: BSD 3 clause
 
 import numpy as np
-from camelbird.metrics._classification import equal_opportunity
+from camelbird.metrics._classification import equal_opportunity, equal_odds, demographic_parity
 
 
 def test_equal_opportunity():

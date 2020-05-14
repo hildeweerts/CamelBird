@@ -129,8 +129,8 @@ def equal_opportunity(y_true, y_pred, a, aggregate=None, sample_weight=None):
     """
     Equal opportunity fairness metric.
 
-    Equal opportunity requires that the true positive rates, ``tp / (tp + fn)`` of all subgroups are equal, where ``tp``
-    is the number of true positives and ``fn`` the number of false negatives. The true positive rate is also known as
+    Equal opportunity requires that the true positive rates, `tpr = tp / (tp + fn)` of all subgroups are equal, where
+    `tp` is the number of true positives and `fn` the number of false negatives. The true positive rate is also known as
     recall. In other words, the classifier should predict the *preferred* class equally well, regardless of
     sensitive group membership. Note that this fairness metric does not take into account correct classification of true
     negatives.
@@ -254,7 +254,7 @@ def demographic_parity(y_true, y_pred, a, aggregate=None, sample_weight=None):
 
     See [1]_ for a more detailed discussion on demographic parity.
 
-    ..  [1] Something
+    ..  [1] X
 
     """
     base_rates = score_subgroups(y_true, y_pred, a, _base_rate_score, sample_weight=sample_weight)
@@ -271,9 +271,10 @@ def demographic_parity(y_true, y_pred, a, aggregate=None, sample_weight=None):
 def equal_odds(y_true, y_pred, a, aggregate=None, sample_weight=None):
     """Equal odds fairness metric.
 
-    Equal odds requires that the true positive rates, ``tp / (tp + fn)``, as well as the true negative rates,
-     ``tn / (tn + fp)`` of all subgroups are equal, where ``tp`` is the number of true positives, ``fn`` the number of
-     false negatives, ``tn`` the number of true negatives, and ``fp`` the number of false positives.
+    Equal odds requires that the true positive rates, `tpr = tp / (tp + fn)`, as well as the true negative rates,
+    `tnr = tn / (tn + fp)` of all subgroups are equal, where `tp` is the number of true positives, `fn` the
+    number of false negatives, `tn` the number of true negatives, and `fp` the number of false positives. The `tpr`
+    is also known as recall. The `tnr` is also equal to `1 - fpr`, where fpr is the false positive rate.
 
     For example, consider a job hiring scenario in which we assume that getting hired is the preferred target outcome
     and gender is the sensitive feature of interest (which we will assume to be binary for ease of presentation).
@@ -294,11 +295,11 @@ def equal_odds(y_true, y_pred, a, aggregate=None, sample_weight=None):
         The type of aggregation performed on the true positive rates and true negative rates.
 
         ``None``:
-            Report the tpr and tnr for each group.
+            Report the `tpr` and `tnr` for each group.
         ``'diff'``:
-            Report the maximum difference in tpr or tnr between groups.
+            Report the average of `tpr` difference between groups and `tnr` difference between groups.
         ``'ratio'``:
-            Report the minimum ratio of tpr or tnr between groups.
+            Report the average of `tpr` ratio between groups and `tnr` ratio between groups.
 
     sample_weight : array-like of shape (n_samples,), default=None
         Sample weights.
@@ -309,8 +310,8 @@ def equal_odds(y_true, y_pred, a, aggregate=None, sample_weight=None):
         Raw true positive rates and true negative rates, if ``aggregate=None``.
 
     equalodd : float
-        If ``aggregate='diff'``, returns the maximum of the tpr difference and tnr difference.
-        If ``aggregate="ratio"``, returns the minimum of the tpr ratio and the tnr ratio.
+        If ``aggregate='diff'``, returns the average of the `tpr` difference and `tnr` difference.
+        If ``aggregate="ratio"``, returns the average of the `tpr` ratio and the `tnr` ratio.
 
     See Also
     --------
@@ -320,9 +321,10 @@ def equal_odds(y_true, y_pred, a, aggregate=None, sample_weight=None):
     Notes
     -----
 
-    See [1]_ for a more detailed discussion on equal opportunity.
+    See [1]_ for a more detailed discussion on equal odds.
 
-    ..  [1] Something
+    ..  [1] M. Hardt, E. Price, and N. Srebro. Equality of opportunity in supervised learning.  In Advances in  Neural
+        Information  Processing  Systems  29, pages 3315–3323. 2016
 
     """
     tpr_scores = score_subgroups(y_true, y_pred, a, recall_score, sample_weight=sample_weight, pos_label=1)
@@ -332,10 +334,10 @@ def equal_odds(y_true, y_pred, a, aggregate=None, sample_weight=None):
     elif aggregate == 'diff':
         diff_tpr = _diff(tpr_scores)
         diff_tnr = _diff(tnr_scores)
-        return max(diff_tpr, diff_tnr)
+        return sum(diff_tpr, diff_tnr)/2
     elif aggregate == 'ratio':
         ratio_tpr = _ratio(tpr_scores)
         ratio_tnr = _ratio(tnr_scores)
-        return min(ratio_tpr, ratio_tnr)
+        return sum(ratio_tpr, ratio_tnr)/2
     else:
         raise ValueError("'aggregate' must be in [None, 'diff', 'ratio'].")

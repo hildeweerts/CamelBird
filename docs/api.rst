@@ -13,5 +13,5 @@ Metrics
     :template: function.rst
 
     demographic_parity
-    equal_opportunity
     equal_odds
+    equal_opportunity
