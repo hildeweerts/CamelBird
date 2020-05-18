@@ -8,12 +8,14 @@ import numpy as np
 
 from sklearn.utils import column_or_1d
 from sklearn.utils.validation import _check_sample_weight
+from sklearn.utils.multiclass import type_of_target
 
 from sklearn.metrics import recall_score
 
 
 def _check_binary(x):
-    return len((np.unique(x))) == 2
+    xtype = type_of_target(x)
+    return xtype == 'binary'
 
 
 def _diff(scores):
@@ -27,7 +29,7 @@ def _diff(scores):
     -------
     diff : float
     """
-    if scores.size != 2:
+    if len(scores) != 2:
         raise ValueError("Non-binary sensitive feature is currently not supported.")
     diff = scores[0] - scores[1]
     return diff
@@ -44,14 +46,16 @@ def _ratio(scores):
     -------
     diff : float
     """
-    if scores.size != 2:
+    if len(scores) != 2:
         raise ValueError("Non-binary sensitive feature is currently not supported.")
     ratio = scores[1] / scores[0]
     return ratio
 
 
-def score_subgroups(y_true, y_pred, a, metric, sample_weight=None, **metric_params):
+def _score_subgroups(y_true, y_pred, a, metric, sample_weight=None, **metric_params):
     """Compute scores for each subgroup according to a (scikit-learn style) metric.
+
+    Samples will be weighted relative to their sample_weight within each subgroup separately.
 
     Parameters
     ----------
@@ -92,7 +96,7 @@ def score_subgroups(y_true, y_pred, a, metric, sample_weight=None, **metric_para
         cond = a == subgroup
         scores[i] = metric(y_true=y_true[cond], y_pred=y_pred[cond], sample_weight=sample_weight[cond],
                            **metric_params)
-    return scores
+    return np.array(scores)
 
 
 def _base_rate_score(y_true, y_pred, sample_weight):
@@ -116,13 +120,12 @@ def _base_rate_score(y_true, y_pred, sample_weight):
 
     """
     y_pred = column_or_1d(y_pred)
-    a = column_or_1d(a)
     sample_weight = _check_sample_weight(sample_weight, y_pred)
 
     if not _check_binary(y_pred):
         raise NotImplementedError("Non-binary target is currently not supported.")
 
-    return (y_pred*sample_weight).mean()
+    return sum(y_pred*sample_weight)/sum(sample_weight)
 
 
 def equal_opportunity(y_true, y_pred, a, aggregate=None, sample_weight=None):
@@ -182,11 +185,11 @@ def equal_opportunity(y_true, y_pred, a, aggregate=None, sample_weight=None):
 
     See [1]_ for a more detailed discussion on equal opportunity.
 
-    ..  [1] M. Hardt, E. Price, and N. Srebro.  Equality of opportunity in supervised learning.  In Advances in  Neural
-        Information  Processing  Systems  29, pages 3315–3323. 2016
+    ..  [1] M. Hardt, E. Price, and N. Srebro (2016). Equality of opportunity in supervised learning.  In Advances in
+        Neural Information  Processing  Systems  29, pages 3315–3323.
 
     """
-    tpr_scores = score_subgroups(y_true, y_pred, a, recall_score, sample_weight=sample_weight, pos_label=1)
+    tpr_scores = _score_subgroups(y_true, y_pred, a, recall_score, sample_weight=sample_weight, pos_label=1)
     if aggregate is None:
         return tpr_scores
     elif aggregate == 'diff':
@@ -209,7 +212,9 @@ def demographic_parity(y_true, y_pred, a, aggregate=None, sample_weight=None):
     irrespective of whether one group is, on average, more qualified.
 
     In contrast to equal odds and equal opportunity, demographic parity does not take into account error rates;
-    i.e. the fairness metric does have any requirements regarding 'how wrong' the classifier is.
+    i.e. the fairness metric does have any requirements regarding the accuracy of a classifier.
+
+    Demographic parity is sometimes referred to as statistical parity.
 
     Parameters
     ----------
@@ -252,12 +257,17 @@ def demographic_parity(y_true, y_pred, a, aggregate=None, sample_weight=None):
     Notes
     -----
 
-    See [1]_ for a more detailed discussion on demographic parity.
+    See [1]_  and [2]_ for a more detailed discussion on demographic parity.
 
-    ..  [1] X
+    ..  [1] M. Hardt, E. Price, and N. Srebro (2016). Equality of opportunity in supervised learning.  In Advances in
+        Neural Information  Processing  Systems  29, pages 3315–3323.
+
+    ..  [2] Dwork, C., Hardt, M., Pitassi, T., Reingold, O. and Zemel, R. (2012). Fairness through awareness. In
+        Proceedings of the 3rd Innovations in Theoretical Computer Science Conference (ITCS ’12).
 
     """
-    base_rates = score_subgroups(y_true, y_pred, a, _base_rate_score, sample_weight=sample_weight)
+    y_true = _check_sample_weight(y_true, y_pred)
+    base_rates = _score_subgroups(y_true, y_pred, a, _base_rate_score, sample_weight=sample_weight)
     if aggregate is None:
         return base_rates
     elif aggregate == 'diff':
@@ -323,21 +333,21 @@ def equal_odds(y_true, y_pred, a, aggregate=None, sample_weight=None):
 
     See [1]_ for a more detailed discussion on equal odds.
 
-    ..  [1] M. Hardt, E. Price, and N. Srebro. Equality of opportunity in supervised learning.  In Advances in  Neural
-        Information  Processing  Systems  29, pages 3315–3323. 2016
+    ..  [1] M. Hardt, E. Price, and N. Srebro (2016). Equality of opportunity in supervised learning.  In Advances in
+        Neural Information  Processing  Systems  29, pages 3315–3323.
 
     """
-    tpr_scores = score_subgroups(y_true, y_pred, a, recall_score, sample_weight=sample_weight, pos_label=1)
-    tnr_scores = score_subgroups(y_true, y_pred, a, recall_score, sample_weight=sample_weight, pos_label=0)
+    tpr_scores = _score_subgroups(y_true, y_pred, a, recall_score, sample_weight=sample_weight, pos_label=1)
+    tnr_scores = _score_subgroups(y_true, y_pred, a, recall_score, sample_weight=sample_weight, pos_label=0)
     if aggregate is None:
         return np.array([tpr_scores, tnr_scores])
     elif aggregate == 'diff':
         diff_tpr = _diff(tpr_scores)
         diff_tnr = _diff(tnr_scores)
-        return sum(diff_tpr, diff_tnr)/2
+        return (diff_tpr + diff_tnr)/2
     elif aggregate == 'ratio':
         ratio_tpr = _ratio(tpr_scores)
         ratio_tnr = _ratio(tnr_scores)
-        return sum(ratio_tpr, ratio_tnr)/2
+        return (ratio_tpr + ratio_tnr)/2
     else:
         raise ValueError("'aggregate' must be in [None, 'diff', 'ratio'].")
