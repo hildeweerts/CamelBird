@@ -11,17 +11,28 @@ pip install git+https://github.com/hildeweerts/camelbird.git
 ```
 
 ## Usage
-...
+``` 
+import camelbird as cb
+
+# ground truth labels
+y_true = [1, 1, 1, 1, 1, 1, 0, 0, 0, 0]
+# predicted labels
+y_pred = [0, 1, 1, 1, 1, 1, 0, 1, 0, 1]
+# sensitive group membership
+a = [1, 1, 1, 1, 0, 0, 1, 1, 0, 0]
+cb.metrics.equal_opportunity(y_true, y_pred, a, aggregate='ratio')
+```
 
 ## Roadmap
 This library is still very much under development. 
 
 ### Fairness Metrics
-* Group Fairness Metrics: equal opportunity, ...
+* Group Fairness Metrics: equal opportunity, equal odds, demographic parity
 
 ##### Future Features
-* Metrics for classification problems
-* Metrics for regression problems
+* Equal classification performance metric: evaluate classification performance per subgroup
+* Metrics for classification problems: predictive parity
+* Metrics for regression problems: demographic parity (i.e. mean difference)
 * Support for polytomous sensitive features (>2 categories)
 * Support multi-class classification
 * Subgroup discrimination discovery
